@@ -1,9 +1,8 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import TensorDataset, DataLoader
 from torchvision import datasets, transforms
+from net import Net
 
 BATCH_SIZE = 64
 EPOCHS = 20
@@ -37,40 +36,13 @@ transform = transforms.Compose([transforms.ToTensor()])
 train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
 test_dataset = datasets.MNIST('./data', train=False, download=True, transform=transform)
 
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
-
 model = Model()
-
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+net = Net(model, F.cross_entropy, torch.optim.Adam(model.parameters(), lr=1e-3), 
+          train_dataset, test_dataset, BATCH_SIZE)
 
 for e in range(EPOCHS):
-    print(f"Epoch #{e + 1} --------------------")
-    model.train()
+    net.train(e)
+    net.test()
 
-    for idx, (input, label) in enumerate(train_loader):
-        optimizer.zero_grad()
-
-        logits = model(input)
-
-        loss = F.cross_entropy(logits, label)
-        loss.backward()
-        optimizer.step()
-
-        if idx % 100 == 0:
-            loss, current = loss.item(), idx * BATCH_SIZE + len(input)
-            print(f"loss: {loss:>7f}  [{current:>5d}/{len(train_dataset):>5d}]")
-    
-    model.eval()
-
-    test_loss, correct = 0, 0
-
-    with torch.no_grad():
-        for input, label in test_loader:
-            logits = model(input)
-            test_loss += F.cross_entropy(logits, label).item()
-            correct += (logits.argmax(1) == label).type(torch.float).sum().item()
-
-        test_loss /= len(test_loader)
-        correct /= len(test_dataset)
-        print(f"Test Error: \n Accuracy: {(100*correct):>0.2f}%, Avg loss: {test_loss:>8f}\n")
+if(input("Save? ") in ['Y', 'y']):
+    torch.save(model.state_dict(), f"models/mnist/{input('Save As: ')}")
